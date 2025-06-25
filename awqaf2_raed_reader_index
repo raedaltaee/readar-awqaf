@@ -1,0 +1,806 @@
+
+
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام المتابعة المتكامل - دائرة أوقاف المحافظات</title>
+
+    <!-- Chosen Palette: Sky Blue & Slate Gray -->
+    <!-- Application Structure Plan: A single-page application (SPA) with a fixed sidebar for navigation and a main content area that dynamically displays different views (Dashboard, Mail, HR, etc.). This structure is chosen for its speed and seamless user experience, avoiding full page reloads. Modals are used for CRUD operations (Create, Read, Update, Delete) to keep the user within the main context. The key interaction is navigating via the sidebar, which updates the main view, and interacting with data within that view via tables and buttons that trigger modals. -->
+    <!-- Visualization & Content Choices: The dashboard uses KPIs (Goal: Inform) for quick stats, a line chart for mail volume over time (Goal: Change), and a doughnut chart for mail status (Goal: Compare). Tables are used for detailed data display (Goal: Organize) with interactive buttons for actions. An interactive org chart (Goal: Organize) is built using HTML/CSS to show departmental structure. All interactions are handled by Vanilla JS, and charts by Chart.js. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS use
+<div class="flex min-h-screen">
+        <!-- Sidebar -->
+        <aside class="w-64 bg-white text-gray-800 p-4 shadow-lg flex-shrink-0">
+            <div class="text-center py-4 border-b">
+                <h1 class="text-xl font-bold text-slate-800">دائرة أوقاف المحافظات</h1>
+                <p class="text-sm text-slate-500">نظام المتابعة المتكامل</p>
+            </div>
+            <nav class="mt-8 flex flex-col justify-between h-[calc(100vh-150px)]">
+                <ul>
+                    <li><a href="#dashboard" class="nav-link flex items-center p-3 my-1 rounded-lg font-semibold"><span class="sidebar-icon me-3">📊</span> لوحة التحكم</a></li>
+                    <li><a href="#incoming-mail" class="nav-link flex items-center p-3 my-1 rounded-lg font-semibold"><span class="sidebar-icon me-3">📥</span> البريد الوارد</a></li>
+                    <li><a href="#outgoing-mail" class="nav-link flex items-center p-3 my-1 rounded-lg font-semibold"><span class="sidebar-icon me-3">📤</span> البريد الصادر</a></li>
+                    <li><a href="#archive" class="nav-link flex items-center p-3 my-1 rounded-lg font-semibold"><span class="sidebar-icon me-3">🗄</span> الأرشيف</a></li>
+                    <li><a href="#circulars" class="nav-link flex items-center p-3 my-1 rounded-lg font-semibold"><span class="sidebar-icon me-3">📢</span> الإعمامات</a></li>
+                    <li><a href="#hr" class="nav-link flex items-center p-3 my-1 rounded-lg font-semibold"><span class="sidebar-icon me-3">👥</span> الموظفين</a></li>
+                    <li><a href="#committees" class="nav-link flex items-center p-3 my-1 rounded-lg font-semibold"><span class="sidebar-icon me-3">🤝</span> اللجان</a></li>
+                    <li><a href="#directorates" class="nav-link flex items-center p-3 my-1 rounded-lg font-semibold"><span class="sidebar-icon me-3">🏛</span> المديريات</a></li>
+                    <li><a href="#org" class="nav-link flex items-center p-3 my-1 rounded-lg font-semibold"><span class="sidebar-icon me-3">🏢</span> الهيكل التنظيمي</a></li>
+                    <li><a href="#reports" class="nav-link flex items-center p-3 my-1 rounded-lg font-semibold"><span class="sidebar-icon me-3">📈</span> التقارير</a></li>
+                </ul>
+                <div class="text-center pt-8">
+                     <p class="text-xs text-gray-500">تصميم وتطوير: ر. مهندسين</p>
+                     <p class="text-sm font-semibold text-gray-700">رائد إبراهيم خليل</p>
+                </div>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <div class="flex-1 flex flex-col">
+            <header class="bg-white shadow-sm p-4 flex justify-between items-center sticky top-0 z-40">
+                <div id="header-title" class="text-xl font-bold text-slate-700">لوحة التحكم</div>
+                <div class="flex items-center">
+                    <span class="text-sm font-semibold">مرحباً, مدير النظام</span>
+                    <button class="bg-red-500 text-white px-4 py-2 rounded-lg ms-4 hover:bg-red-600 transition-colors">خروج</button>
+                </div>
+            </header>
+<main class="flex-1 p-6 overflow-y-auto">
+                
+                <!-- All Views -->
+                <div id="dashboard-view" class="view"></div>
+                <div id="incoming-mail-view" class="view hidden"></div>
+                <div id="outgoing-mail-view" class="view hidden"></div>
+                <div id="archive-view" class="view hidden"></div>
+                <div id="circulars-view" class="view hidden"></div>
+                <div id="hr-view" class="view hidden"></div>
+                <div id="committees-view" class="view hidden"></div>
+                <div id="directorates-view" class="view hidden"></div>
+                <div id="org-view" class="view hidden"></div>
+                <div id="reports-view" class="view hidden"></div>
+                
+            </main>
+        </div>
+    </div>
+    
+    <!-- Modals -->
+    <div id="mail-modal" class="modal-overlay hidden"></div>
+    <div id="mail-history-modal" class="modal-overlay hidden"></div>
+    <div id="employee-modal" class="modal-overlay hidden"></div>
+    <div id="circular-modal" class="modal-overlay hidden"></div>
+    <div id="committee-modal" class="modal-overlay hidden"></div>
+    <div id="directorate-modal" class="modal-overlay hidden"></div>
+    <div id="confirm-modal" class="modal-overlay hidden"></div>
+
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    
+    // --- DATA PERSISTENCE & INITIALIZATION ---
+    const getInitialData = (key, defaultData) => {
+        try {
+            const storedData = localStorage.getItem(key);
+            return storedData ? JSON.parse(storedData) : defaultData;
+        } catch (error) { console.error(`Error reading ${key}:`, error); return defaultData; }
+    };
+    const saveData = (key, data) => {
+        try { localStorage.setItem(key, JSON.stringify(data)); } 
+        catch (error) { console.error(`Error saving ${key}:`, error); }
+    };
+
+    let departmentData = getInitialData('departmentData', [
+        {id: 1, name: 'مكتب المدير العام'}, {id: 2, name: 'الشعبة الإدارية والأرشفة'}, {id: 3, name: 'قسم المحافظات الشمالية'}, {id: 4, name: 'قسم المحافظات الوسطى'}, {id: 5, name: 'قسم محافظات الفرات الأوسط'}, {id: 6, name: 'قسم المحافظات الجنوبية'},
+        {id: 10, name: 'الشعبة القانونية', parentId: 3}, {id: 11, name: 'شعبة التعليم الديني', parentId: 3}, {id: 12, name: 'الشعبة الهندسية', parentId: 4}
+    ]);
+    let employeeData = getInitialData('employeeData', [
+        { id: 1, name: 'علي حسن', title: 'مهندس', departmentId: 12, phone: '07701234567', email: 'ali@example.com', education: 'بكالوريوس هندسة', docs: 'هوية، بطاقة سكن' },
+        { id: 2, name: 'فاطمة محمد', title: 'محاسب', departmentId: 2, phone: '07801234567', email: 'fatima@example.com', education: 'بكالوريوس محاسبة', docs: 'هوية' },
+        { id: 3, name: 'أحمد ياسين', title: 'باحث شرعي', departmentId: 5, phone: '07901234567', email: 'ahmed@example.com', education: 'ماجستير فقه', docs: 'هوية، جواز سفر' },
+        { id: 4, name: 'زينب كريم', title: 'مسؤول إداري', departmentId: 2, phone: '07501234567', email: 'zainab@example.com', education: 'دبلوم إدارة', docs: 'هوية' }
+    ]);
+    let mailData = getInitialData('mailData', [
+        { id: 1, type: 'incoming', number: '120/أ', date: '2025-06-10', entity: 'محافظة بغداد', subject: 'بخصوص تخصيص قطعة أرض للوقف', status: 'completed', departmentId: 6, action: 'تم الرد', notes: 'تم الرد بتاريخ 2025-06-15', history: [{date: '2025-06-10', action: 'إنشاء وإحالة للقسم الجنوبي'}, {date: '2025-06-15', action: 'إنجاز المعاملة'}] },
+        { id: 2, type: 'outgoing', number: '345/ب', date: '2025-06-12', entity: 'وزارة المالية', subject: 'طلب بيان مالي للربع الثاني', status: 'in-progress', departmentId: 2, action: 'متابعة', notes: 'قيد المراجعة من القسم المالي', history: [{date: '2025-06-12', action: 'إنشاء الكتاب'}] },
+
+رائد الطائي, [25/06/2025 03:18 ص]
+{ id: 3, type: 'incoming', number: '135/ج', date: '2025-06-15', entity: 'أمانة بغداد', subject: 'استفسار حول ترميم وقف تاريخي', status: 'in-progress', departmentId: 4, action: 'للدراسة', notes: '', history: [{date: '2025-06-15', action: 'إنشاء وإحالة للقسم الهندسي'}] },
+    ]);
+    let archivedMailData = getInitialData('archivedMailData', []);
+    let circularData = getInitialData('circularData', [
+        {id: 1, number: 'ت/1/150', date: '2025-06-01', source: 'الأمانة العامة لمجلس الوزراء', subject: 'آليات التعامل مع طلبات المواطنين', status: 'completed'},
+        {id: 2, number: 'ت/5/200', date: '2025-06-18', source: 'رئاسة ديوان الوقف الشيعي', subject: 'ضوابط جرد الأملاك الموقوفة', status: 'pending'}
+    ]);
+    let committeeData = getInitialData('committeeData', [
+        {id: 1, name: 'لجنة جرد الأملاك', members: [1, 2], tasks: 'جرد جميع أملاك الوقف في بغداد', achievements: 'تم إنجاز 50% من الجرد.'},
+        {id: 2, name: 'لجنة تطوير المناهج', members: [3], tasks: 'مراجعة وتطوير مناهج المدارس الدينية', achievements: 'قيد المراجعة الأولية.'}
+    ]);
+    let directorateData = getInitialData('directorateData', [
+        {id: 1, name: 'مديرية أوقاف بغداد', province: 'بغداد', assets: '15 مسجد, 5 مدارس', problems: 'تحتاج بعض المساجد للترميم.'}
+    ]);
+
+
+    // --- TEMPLATING ENGINE ---
+    const render = (templateId, data) => {
+        const templates = {
+            // Views
+            dashboardView: () => `
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+                    <div class="bg-white p-5 rounded-xl shadow text-center"><h3 class="text-gray-500 font-semibold">إجمالي المعاملات</h3><p id="total-mail-kpi" class="text-4xl font-bold text-sky-600 mt-2">0</p></div>
+                    <div class="bg-white p-5 rounded-xl shadow text-center"><h3 class="text-gray-500 font-semibold">إعمامات قيد المتابعة</h3><p id="pending-circulars-kpi" class="text-4xl font-bold text-amber-500 mt-2">0</p></div>
+                    <div class="bg-white p-5 rounded-xl shadow text-center"><h3 class="text-gray-500 font-semibold">بريد قيد الإجراء</h3><p id="progress-mail-kpi" class="text-4xl font-bold text-indigo-500 mt-2">0</p></div>
+                    <div class="bg-white p-5 rounded-xl shadow text-center"><h3 class="text-gray-500 font-semibold">معاملات منجزة</h3><p id="completed-mail-kpi" class="text-4xl font-bold text-green-500 mt-2">0</p></div>
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+                    <div class="bg-white p-6 rounded-xl shadow lg:col-span-3"><h3 class="font-bold text-lg mb-4">حجم البريد الشهري</h3><div class="chart-container" style="height: 250px;"><canvas id="mailVolumeChart"></canvas></div></div>
+                    <div class="bg-white p-6 rounded-xl shadow lg:col-span-2"><h3 class="font-bold text-lg mb-4">حالة البريد</h3><div class="chart-container" style="height: 250px;"><canvas id="mailStatusChart"></canvas></div></div>
+                </div>`,
+            mailView: (type) => `
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <div class="flex justify-between items-center mb-4 flex-wrap gap-4">
+                        <h2 class="text-xl font-bold text-slate-700">${type === 'incoming' ? 'سجل البريد الوارد' : 'سجل البريد الصادر'}</h2>
+                        <div class="flex items-center gap-2">
+                            <input type="text" id="mailSearch-${type}" placeholder="بحث بالرقم، الموضوع، الجهة..." class="border p-2 rounded-lg w-72">
+                            <button data-type="${type}" class="add-mail-btn bg-sky-600 text-white px-5 py-2 rounded-lg hover:bg-sky-700 font-bold">إضافة بريد</button>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto"><table class="w-full text-right"><thead class="border-b-2"><tr>
+                        <th class="p-3">رقم الكتاب</th><th class="p-3">التاريخ</th><th class="p-3">الجهة</th><th class="p-3">الموضوع</th><th class="p-3">الحالة</th><th class="p-3">إجراءات</th>
+
+رائد الطائي, [25/06/2025 03:18 ص]
+</tr></thead><tbody id="mailTableBody-${type}"></tbody></table></div>
+                </div>`,
+            archiveView: () => `
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <h2 class="text-xl font-bold text-slate-700 mb-4">الأرشيف الإلكتروني</h2>
+                     <div class="overflow-x-auto"><table class="w-full text-right"><thead class="border-b-2"><tr>
+                        <th class="p-3">رقم الكتاب</th><th class="p-3">تاريخ الأرشفة</th><th class="p-3">الموضوع</th><th class="p-3">النوع</th><th class="p-3">إجراءات</th>
+                    </tr></thead><tbody id="archiveTableBody"></tbody></table></div>
+                </div>`,
+            circularsView: () => `
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <div class="flex justify-between items-center mb-4"><h2 class="text-xl font-bold text-slate-700">سجل الإعمامات</h2>
+                        <div class="flex items-center gap-2">
+                             <input type="text" id="circularSearch" placeholder="بحث بالرقم، الموضوع، المصدر..." class="border p-2 rounded-lg w-72">
+                            <button id="add-circular-btn" class="bg-sky-600 text-white px-5 py-2 rounded-lg hover:bg-sky-700 font-bold">إضافة تعميم</button>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto"><table class="w-full text-right"><thead class="border-b-2"><tr>
+                        <th class="p-3">رقم التعميم</th><th class="p-3">تاريخه</th><th class="p-3">مصدره</th><th class="p-3">الموضوع</th><th class="p-3">الحالة</th><th class="p-3">إجراءات</th>
+                    </tr></thead><tbody id="circularsTableBody"></tbody></table></div>
+                </div>`,
+            hrView: () => `
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <div class="flex justify-between items-center mb-4"><h2 class="text-xl font-bold text-slate-700">قائمة الموظفين</h2><button id="add-employee-btn" class="bg-sky-600 text-white px-5 py-2 rounded-lg hover:bg-sky-700 font-bold">إضافة موظف</button></div>
+                    <div class="overflow-x-auto"><table class="w-full text-right"><thead class="border-b-2"><tr>
+                        <th class="p-3">الاسم</th><th class="p-3">المنصب</th><th class="p-3">القسم</th><th class="p-3">إجراءات</th>
+                    </tr></thead><tbody id="employeeTableBody"></table></div>
+                </div>`,
+            committeesView: () => `
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <div class="flex justify-between items-center mb-4"><h2 class="text-xl font-bold text-slate-700">إدارة اللجان</h2><button id="add-committee-btn" class="bg-sky-600 text-white px-5 py-2 rounded-lg hover:bg-sky-700 font-bold">تشكيل لجنة</button></div>
+                    <div class="overflow-x-auto"><table class="w-full text-right"><thead class="border-b-2"><tr>
+                        <th class="p-3">اسم اللجنة</th><th class="p-3">الأعضاء</th><th class="p-3">المهام</th><th class="p-3">الإنجاز</th><th class="p-3">إجراءات</th>
+                    </tr></thead><tbody id="committeesTableBody"></tbody></table></div>
+                </div>`,
+            directoratesView: () => `
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <div class="flex justify-between items-center mb-4"><h2 class="text-xl font-bold text-slate-700">لوحة تحكم المديريات</h2><button id="add-directorate-btn" class="bg-sky-600 text-white px-5 py-2 rounded-lg hover:bg-sky-700 font-bold">إضافة مديرية</button></div>
+                    <div id="directorates-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+                </div>`,
+            orgView: () => {
+                const buildNode = (dept) => {
+                    const subs = departmentData.filter(d => d.parentId === dept.id);
+                    const emps = employeeData.filter(e => e.departmentId === dept.id);
+                    return `
+                        <div class="flex flex-col items-center">
+
+رائد الطائي, [25/06/2025 03:18 ص]
+<details class="org-chart-node w-full" open>
+                                <summary>${dept.name}</summary>
+                                <div class="p-2 mt-2 bg-gray-50 text-sm font-normal text-right">
+                                    <h4 class="font-bold mb-1">الموظفون:</h4>
+                                    ${emps.length > 0 ? emps.map(e => `<p>${e.name} - ${e.title}</p>`).join('') : '<p class="text-gray-500">لا يوجد</p>'}
+                                </div>
+                            </details>
+                            ${subs.length > 0 ? `<div class="org-chart-connector h-4"></div><div class="flex gap-2 w-full">${subs.map(s => `<div class="w-full">${buildNode(s)}</div>`).join('')}</div>` : ''}
+                        </div>`;
+                };
+                const mainDepts = departmentData.filter(d => d.id >=3 && d.id <= 6);
+                return `
+                    <h2 class="text-2xl font-bold text-slate-700 mb-6 text-center">الهيكل التنظيمي لدائرة أوقاف المحافظات</h2>
+                    <div class="flex flex-col items-center space-y-8">
+                        <div class="w-full md:w-1/3">${buildNode(departmentData.find(d => d.id === 1))}</div>
+                        <div class="org-chart-connector h-4"></div>
+                        <div class="w-full md:w-1/2">${buildNode(departmentData.find(d => d.id === 2))}</div>
+                        <div class="org-chart-connector h-4"></div>
+                        <div class="w-full border-t-2 border-sky-200 my-4 pt-4">
+                            <p class="text-center font-bold mb-4 text-slate-600">الأقسام الإشرافية</p>
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">${mainDepts.map(buildNode).join('')}</div>
+                        </div>
+                    </div>`;
+            },
+            reportsView: () => `
+                <h2 class="text-2xl font-bold text-slate-700 mb-2">التقارير والتحليلات</h2><p class="text-gray-600 mb-6">نظرة شاملة على أداء وكفاءة نظام البريد.</p>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                    <div class="bg-white p-5 rounded-xl shadow text-center"><h3 class="text-gray-500 font-semibold">متوسط وقت الإنجاز</h3><p id="average-completion-time" class="text-4xl font-bold text-cyan-600 mt-2">3.2 <span class="text-xl">أيام</span></p></div>
+                    <div class="bg-white p-5 rounded-xl shadow"><h3 class="text-gray-500 font-semibold text-center">توزيع البريد حسب الأولوية</h3><div class="chart-container" style="height: 120px"><canvas id="priority-report-chart"></canvas></div></div>
+                    <div class="bg-white p-5 rounded-xl shadow"><h3 class="text-gray-500 font-semibold text-center">توزيع البريد حسب النوع</h3><div class="chart-container" style="height: 120px"><canvas id="type-report-chart"></canvas></div></div>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow"><h3 class="font-bold text-lg mb-4">تحليل أداء الأقسام (عدد المعاملات)</h3><div class="chart-container" style="height: 350px;"><canvas id="department-performance-chart"></canvas></div></div>`,
+            
+            // Modals
+            mailModal: () => `
+                <div class="modal-content">
+                <h2 id="mail-modal-title" class="text-2xl font-bold mb-6">إضافة بريد</h2>
+                <form id="mail-form"><input type="hidden" id="mail-id"><div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="md:col-span-2"><label for="mail-subject" class="block font-semibold mb-1">الموضوع</label><textarea id="mail-subject" rows="2" class="w-full border p-2 rounded-lg" required></textarea></div>
+                    <div><label for="mail-type" class="block font-semibold mb-1">نوع البريد</label><select id="mail-type" class="w-full border p-2 rounded-lg" required><option value="incoming">وارد</option><option value="outgoing">صادر</option></select></div>
+
+رائد الطائي, [25/06/2025 03:18 ص]
+<div><label for="mail-number" class="block font-semibold mb-1">رقم الكتاب</label><input type="text" id="mail-number" class="w-full border p-2 rounded-lg" required></div>
+                    <div><label for="mail-date" class="block font-semibold mb-1">تاريخ الكتاب</label><input type="date" id="mail-date" class="w-full border p-2 rounded-lg" required></div>
+                    <div><label for="mail-entity" class="block font-semibold mb-1">الجهة</label><input type="text" id="mail-entity" class="w-full border p-2 rounded-lg" required></div>
+                    <div><label for="mail-department" class="block font-semibold mb-1">القسم المحال إليه</label><select id="mail-department" class="w-full border p-2 rounded-lg"></select></div>
+                    <div><label for="mail-action" class="block font-semibold mb-1">الإجراء المطلوب</label><input type="text" id="mail-action" placeholder="للعلم، للمتابعة..." class="w-full border p-2 rounded-lg"></div>
+                     <div><label for="mail-status-modal" class="block font-semibold mb-1">الحالة</label><select id="mail-status-modal" class="w-full border p-2 rounded-lg"><option value="new">جديد</option><option value="in-progress">قيد الإجراء</option><option value="completed">منجز</option></select></div>
+                    <div class="md:col-span-2"><label for="mail-notes" class="block font-semibold mb-1">ملاحظات</label><textarea id="mail-notes" rows="2" class="w-full border p-2 rounded-lg"></textarea></div>
+                </div><div class="flex justify-end gap-4 mt-8"><button type="button" class="modal-cancel-btn bg-gray-300 px-6 py-2 rounded-lg">إلغاء</button><button type="submit" class="bg-sky-600 text-white px-6 py-2 rounded-lg font-bold">حفظ</button></div></form></div>`,
+            mailHistoryModal: (mail) => {
+                if(!mail  !mail.history) return <div class="modal-content"><p>لا يوجد سجل لهذه المعاملة.</p></div>;
+                const historyHTML = mail.history.map(h => <div class="relative ps-8 my-2"><div class="absolute start-0 top-0 h-full w-0.5 bg-sky-200"></div><div class="absolute start-[-9px] top-1 w-5 h-5 bg-sky-500 rounded-full border-4 border-white"></div><p class="font-bold">${h.action}</p><p class="text-sm text-gray-500">${h.date}</p></div>).join('<div class="ps-8"><div class="h-4"></div></div>');
+                return <div class="modal-content"><h2 class="text-2xl font-bold mb-6">مسار المعاملة: ${mail.subject}</h2><div class="space-y-2">${historyHTML}</div><div class="text-left mt-6"><button class="modal-cancel-btn bg-gray-300 px-6 py-2 rounded-lg">إغلاق</button></div></div>
+            },
+            employeeModal: () => `
+                <div class="modal-content"><h2 id="employee-modal-title" class="text-2xl font-bold mb-6">إضافة موظف</h2><form id="employee-form"><input type="hidden" id="employee-id">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div><label for="employee-name" class="block font-semibold">الاسم</label><input type="text" id="employee-name" class="w-full border p-2 rounded-lg" required></div>
+                    <div><label for="employee-title" class="block font-semibold">المنصب</label><input type="text" id="employee-title" class="w-full border p-2 rounded-lg" required></div>
+                    <div class="md:col-span-2"><label for="employee-department-id" class="block font-semibold">القسم</label><select id="employee-department-id" class="w-full border p-2 rounded-lg" required></select></div>
+                    <div><label for="employee-phone" class="block font-semibold">الهاتف</label><input type="tel" id="employee-phone" class="w-full border p-2 rounded-lg"></div>
+                    <div><label for="employee-email" class="block font-semibold">البريد الإلكتروني</label><input type="email" id="employee-email" class="w-full border p-2 rounded-lg"></div>
+                    <div class="md:col-span-2"><label for="employee-education" class="block font-semibold">التحصيل العلمي</label><input type="text" id="employee-education" class="w-full border p-2 rounded-lg"></div>
+
+<div class="md:col-span-2"><label for="employee-docs" class="block font-semibold">المستمسكات (نص)</label><textarea id="employee-docs" rows="2" class="w-full border p-2 rounded-lg"></textarea></div>
+                </div>
+                <div class="flex justify-end gap-4 mt-8"><button type="button" class="modal-cancel-btn bg-gray-300 px-6 py-2 rounded-lg">إلغاء</button><button type="submit" class="bg-sky-600 text-white px-6 py-2 rounded-lg font-bold">حفظ</button></div></form></div>`,
+            circularModal: () => `
+                <div class="modal-content"><h2 id="circular-modal-title" class="text-2xl font-bold mb-6">إضافة تعميم</h2><form id="circular-form"><input type="hidden" id="circular-id"><div class="space-y-4">
+                    <div><label for="circular-subject" class="block font-semibold">الموضوع</label><input type="text" id="circular-subject" class="w-full border p-2 rounded-lg" required></div>
+                    <div><label for="circular-number" class="block font-semibold">رقم التعميم</label><input type="text" id="circular-number" class="w-full border p-2 rounded-lg" required></div>
+                    <div><label for="circular-date" class="block font-semibold">تاريخه</label><input type="date" id="circular-date" class="w-full border p-2 rounded-lg" required></div>
+                    <div><label for="circular-source" class="block font-semibold">مصدره</label><input type="text" id="circular-source" class="w-full border p-2 rounded-lg" required></div>
+                    <div><label for="circular-status" class="block font-semibold">الحالة</label><select id="circular-status" class="w-full border p-2 rounded-lg" required><option value="pending">قيد المتابعة</option><option value="completed">تم الإنجاز</option></select></div>
+                </div><div class="flex justify-end gap-4 mt-8"><button type="button" class="modal-cancel-btn bg-gray-300 px-6 py-2 rounded-lg">إلغاء</button><button type="submit" class="bg-sky-600 text-white px-6 py-2 rounded-lg font-bold">حفظ</button></div></form></div>`,
+            committeeModal: () => `
+                <div class="modal-content"><h2 id="committee-modal-title" class="text-2xl font-bold mb-6">تشكيل لجنة</h2><form id="committee-form"><input type="hidden" id="committee-id"><div class="space-y-4">
+                    <div><label for="committee-name" class="block font-semibold">اسم اللجنة</label><input type="text" id="committee-name" class="w-full border p-2 rounded-lg" required></div>
+                    <div><label class="block font-semibold">الأعضاء</label><div id="committee-members-checkboxes" class="p-2 border rounded-lg max-h-32 overflow-y-auto grid grid-cols-2 gap-2"></div></div>
+                    <div><label for="committee-tasks" class="block font-semibold">المهام</label><textarea id="committee-tasks" rows="3" class="w-full border p-2 rounded-lg" required></textarea></div>
+                    <div><label for="committee-achievements" class="block font-semibold">الإنجاز</label><textarea id="committee-achievements" rows="2" class="w-full border p-2 rounded-lg"></textarea></div>
+                </div><div class="flex justify-end gap-4 mt-8"><button type="button" class="modal-cancel-btn bg-gray-300 px-6 py-2 rounded-lg">إلغاء</button><button type="submit" class="bg-sky-600 text-white px-6 py-2 rounded-lg font-bold">حفظ</button></div></form></div>`,
+            directorateModal: () => `
+                <div class="modal-content"><h2 id="directorate-modal-title" class="text-2xl font-bold mb-6">إضافة مديرية</h2><form id="directorate-form"><input type="hidden" id="directorate-id"><div class="space-y-4">
+                    <div><label for="directorate-name" class="block font-semibold">اسم المديرية</label><input type="text" id="directorate-name" class="w-full border p-2 rounded-lg" required></div>
+                    <div><label for="directorate-province" class="block font-semibold">المحافظة</label><input type="text" id="directorate-province" class="w-full border p-2 rounded-lg" required></div>
+
+رائد الطائي, [25/06/2025 03:18 ص]
+<div><label for="directorate-assets" class="block font-semibold">الأملاك (مساجد، مدارس...)</label><textarea id="directorate-assets" rows="2" class="w-full border p-2 rounded-lg"></textarea></div>
+                    <div><label for="directorate-problems" class="block font-semibold">المشاكل والاحتياجات</label><textarea id="directorate-problems" rows="3" class="w-full border p-2 rounded-lg"></textarea></div>
+                </div><div class="flex justify-end gap-4 mt-8"><button type="button" class="modal-cancel-btn bg-gray-300 px-6 py-2 rounded-lg">إلغاء</button><button type="submit" class="bg-sky-600 text-white px-6 py-2 rounded-lg font-bold">حفظ</button></div></form></div>`,
+            confirmModal: () => <div class="modal-content text-center max-w-sm"><h2 class="text-xl font-bold mb-4">تأكيد الحذف</h2><p class="mb-6">هل أنت متأكد؟ لا يمكن التراجع عن هذا الإجراء.</p><div class="flex justify-center gap-4"><button id="confirm-cancel-btn" class="bg-gray-300 px-6 py-2 rounded-lg">إلغاء</button><button id="confirm-delete-btn" class="bg-red-600 text-white px-6 py-2 rounded-lg font-bold">حذف</button></div></div>,
+        };
+        const targetElement = document.getElementById(templateId);
+        if (targetElement) {
+            targetElement.innerHTML = templates[templateId.replace(/-(\w)/g, (m, g) => g.toUpperCase())](data);
+        }
+    };
+
+    // --- GLOBAL APP STATE & RENDER ---
+    const app = {
+        // Data
+        departments: departmentData,
+        employees: employeeData,
+        mails: mailData,
+        archivedMails: archivedMailData,
+        circulars: circularData,
+        committees: committeeData,
+        directorates: directorateData,
+
+        // UI State
+        activeView: 'dashboard',
+        charts: {},
+        confirmCallback: null,
+
+        // --- INITIALIZATION ---
+        init() {
+            this.setupEventListeners();
+            const initialHash = window.location.hash  '#dashboard';
+            this.navigateTo(initialHash);
+            
+            window.addEventListener('hashchange', () => this.navigateTo(window.location.hash));
+        },
+
+        // --- NAVIGATION ---
+        navigateTo(hash) {
+            this.activeView = hash.substring(1)  'dashboard';
+            document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
+            const currentView = document.getElementById(${this.activeView}-view);
+            if (currentView) {
+                currentView.classList.remove('hidden');
+            }
+
+            document.querySelectorAll('.nav-link').forEach(l => {
+                l.classList.remove('bg-sky-100', 'text-sky-700', 'font-bold');
+                l.classList.add('hover:bg-sky-100', 'hover:text-sky-700', 'font-semibold');
+                if(l.getAttribute('href') === hash) {
+                    l.classList.add('bg-sky-100', 'text-sky-700', 'font-bold');
+                    l.classList.remove('hover:bg-sky-100', 'hover:text-sky-700', 'font-semibold');
+                    document.getElementById('header-title').textContent = l.textContent.trim();
+                }
+            });
+<script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Cairo', sans-serif;
+            background-color: #f0f4f8; /* A light, neutral background */
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            margin: auto;
+            height: 300px;
+        }
+        @media (max-width: 768px) {
+            .chart-container {
+                height: 250px;
+            }
+        }
+        .sidebar-icon {
+            font-size: 1.5rem;
+            line-height: 1;
+        }
+        .status-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+            transition: opacity 0.3s ease;
+            opacity: 0;
+            pointer-events: none;
+        }
+        .modal-overlay:not(.hidden) {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .modal-content {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 0.75rem;
+            width: 90%;
+            max-width: 700px;
+            max-height: 90vh;
+            overflow-y: auto;
+            transform: scale(0.95);
+            transition: transform 0.3s ease;
+        }
+        .modal-overlay:not(.hidden) .modal-content {
+             transform: scale(1);
+        }
+        .org-chart-node {
+             background-color: white;
+             border: 2px solid #38bdf8;
+             color: #0369a1;
+             padding: 0.5rem;
+             border-radius: 0.5rem;
+             text-align: center;
+             font-weight: 600;
+             box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+         .org-chart-node summary {
+             cursor: pointer;
+             outline: none;
+        }
+         .org-chart-node-sub {
+             background-color: #f0f9ff;
+             border: 1px solid #7dd3fc;
+             color: #0c4a6e;
+         }
+         .org-chart-connector {
+             width: 2px;
+             background-color: #7dd3fc;
+             margin: 0 auto;
+         }
+    </style>
+</head>
+<body class="bg-slate-100
+<div class="flex min-h-screen">
+        <!-- Sidebar -->
+        <aside class="w-64 bg-white text-gray-800 p-4 shadow-lg flex-shrink-0">
+            <div class="text-center py-4 border-b">
+                <h1 class="text-xl font-bold text-slate-800">دائرة أوقاف المحافظات</h1>
+                <p class="text-sm text-slate-500">نظام المتابعة المتكامل</p>
+            </div>
+            <nav class="mt-8 flex flex-col justify-between h-[calc(100vh-150px)]">
+                <ul>
+                    <li><a href="#dashboard" class="nav-link flex items-center p-3 my-1 rounded-lg font-semibold"><span class="sidebar-icon me-3">📊</span> لوحة التحكم</a></li>
+                    <li><a href="#incoming-mail" class="nav-link flex items-center p-3 my-1 rounded-lg font-semibold"><span class="sidebar-icon me-3">📥</span> البريد الوارد</a></li>
+                    <li><a href="#outgoing-mail" class="nav-link flex items-center p-3 my-1 rounded-lg font-semibold"><span class="sidebar-icon me-3">📤</span> البريد الصادر</a></li>
+                    <li><a href="#archive" class="nav-link flex items-center p-3 my-1 rounded-lg font-semibold"><span class="sidebar-icon me-3">🗄</span> الأرشيف</a></li>
+                    <li><a href="#circulars" class="nav-link flex items-center p-3 my-1 rounded-lg font-semibold"><span class="sidebar-icon me-3">📢</span> الإعمامات</a></li>
+                    <li><a href="#hr" class="nav-link flex items-center p-3 my-1 rounded-lg font-semibold"><span class="sidebar-icon me-3">👥</span> الموظفين</a></li>
+                    <li><a href="#committees" class="nav-link flex items-center p-3 my-1 rounded-lg font-semibold"><span class="sidebar-icon me-3">🤝</span> اللجان</a></li>
+                    <li><a href="#directorates" class="nav-link flex items-center p-3 my-1 rounded-lg font-semibold"><span class="sidebar-icon me-3">🏛</span> المديريات</a></li>
+                    <li><a href="#org" class="nav-link flex items-center p-3 my-1 rounded-lg font-semibold"><span class="sidebar-icon me-3">🏢</span> الهيكل التنظيمي</a></li>
+                    <li><a href="#reports" class="nav-link flex items-center p-3 my-1 rounded-lg font-semibold"><span class="sidebar-icon me-3">📈</span> التقارير</a></li>
+                </ul>
+                <div class="text-center pt-8">
+                     <p class="text-xs text-gray-500">تصميم وتطوير: ر. مهندسين</p>
+                     <p class="text-sm font-semibold text-gray-700">رائد إبراهيم خليل</p>
+                </div>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <div class="flex-1 flex flex-col">
+            <header class="bg-white shadow-sm p-4 flex justify-between items-center sticky top-0 z-40">
+                <div id="header-title" class="text-xl font-bold text-slate-700">لوحة التحكم</div>
+                <div class="flex items-center">
+                    <span class="text-sm font-semibold">مرحباً, مدير النظام</span>
+                    <button class="bg-red-500 text-white px-4 py-2 rounded-lg ms-4 hover:bg-red-600 transition-colors">خروج</button>
+                </div>
+            </heade
+<main class="flex-1 p-6 overflow-y-auto">
+                
+                <!-- All Views -->
+                <div id="dashboard-view" class="view"></div>
+                <div id="incoming-mail-view" class="view hidden"></div>
+                <div id="outgoing-mail-view" class="view hidden"></div>
+                <div id="archive-view" class="view hidden"></div>
+                <div id="circulars-view" class="view hidden"></div>
+                <div id="hr-view" class="view hidden"></div>
+                <div id="committees-view" class="view hidden"></div>
+                <div id="directorates-view" class="view hidden"></div>
+                <div id="org-view" class="view hidden"></div>
+                <div id="reports-view" class="view hidden"></div>
+                
+            </main>
+        </div>
+    </div>
+    
+    <!-- Modals -->
+    <div id="mail-modal" class="modal-overlay hidden"></div>
+    <div id="mail-history-modal" class="modal-overlay hidden"></div>
+    <div id="employee-modal" class="modal-overlay hidden"></div>
+    <div id="circular-modal" class="modal-overlay hidden"></div>
+    <div id="committee-modal" class="modal-overlay hidden"></div>
+    <div id="directorate-modal" class="modal-overlay hidden"></div>
+    <div id="confirm-modal" class="modal-overlay hidden"></div>
+
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    
+    // --- DATA PERSISTENCE & INITIALIZATION ---
+    const getInitialData = (key, defaultData) => {
+        try {
+            const storedData = localStorage.getItem(key);
+            return storedData ? JSON.parse(storedData) : defaultData;
+        } catch (error) { console.error(`Error reading ${key}:`, error); return defaultData; }
+    };
+    const saveData = (key, data) => {
+        try { localStorage.setItem(key, JSON.stringify(data)); } 
+        catch (error) { console.error(`Error saving ${key}:`, error); }
+    };
+
+    let departmentData = getInitialData('departmentData', [
+        {id: 1, name: 'مكتب المدير العام'}, {id: 2, name: 'الشعبة الإدارية والأرشفة'}, {id: 3, name: 'قسم المحافظات الشمالية'}, {id: 4, name: 'قسم المحافظات الوسطى'}, {id: 5, name: 'قسم محافظات الفرات الأوسط'}, {id: 6, name: 'قسم المحافظات الجنوبية'},
+        {id: 10, name: 'الشعبة القانونية', parentId: 3}, {id: 11, name: 'شعبة التعليم الديني', parentId: 3}, {id: 12, name: 'الشعبة الهندسية', parentId: 4}
+    ]);
+    let employeeData = getInitialData('employeeData', [
+        { id: 1, name: 'علي حسن', title: 'مهندس', departmentId: 12, phone: '07701234567', email: 'ali@example.com', education: 'بكالوريوس هندسة', docs: 'هوية، بطاقة سكن' },
+        { id: 2, name: 'فاطمة محمد', title: 'محاسب', departmentId: 2, phone: '07801234567', email: 'fatima@example.com', education: 'بكالوريوس محاسبة', docs: 'هوية' },
+        { id: 3, name: 'أحمد ياسين', title: 'باحث شرعي', departmentId: 5, phone: '07901234567', email: 'ahmed@example.com', education: 'ماجستير فقه', docs: 'هوية، جواز سفر' },
+        { id: 4, name: 'زينب كريم', title: 'مسؤول إداري', departmentId: 2, phone: '07501234567', email: 'zainab@example.com', education: 'دبلوم إدارة', docs: 'هوية' }
+    ]);
+    let mailData = getInitialData('mailData', [
+        { id: 1, type: 'incoming', number: '120/أ', date: '2025-06-10', entity: 'محافظة بغداد', subject: 'بخصوص تخصيص قطعة أرض للوقف', status: 'completed', departmentId: 6, action: 'تم الرد', notes: 'تم الرد بتاريخ 2025-06-15', history: [{date: '2025-06-10', action: 'إنشاء وإحالة للقسم الجنوبي'}, {date: '2025-06-15', action: 'إنجاز المعاملة'}] },
+        { id: 2, type: 'outgoing', number: '345/ب', date: '2025-06-12', entity: 'وزارة المالية', subject: 'طلب بيان مالي للربع الثاني', status: 'in-progress', departmentId: 2, action: 'متابعة', notes: 'قيد المراجعة من القسم المالي', history: [{date: '2025-06-12', action: 'إنشاء الكتاب'}] },
+
+رائد الطائي, [25/06/2025 03:18 ص]
+{ id: 3, type: 'incoming', number: '135/ج', date: '2025-06-15', entity: 'أمانة بغداد', subject: 'استفسار حول ترميم وقف تاريخي', status: 'in-progress', departmentId: 4, action: 'للدراسة', notes: '', history: [{date: '2025-06-15', action: 'إنشاء وإحالة للقسم الهندسي'}] },
+    ]);
+    let archivedMailData = getInitialData('archivedMailData', []);
+    let circularData = getInitialData('circularData', [
+        {id: 1, number: 'ت/1/150', date: '2025-06-01', source: 'الأمانة العامة لمجلس الوزراء', subject: 'آليات التعامل مع طلبات المواطنين', status: 'completed'},
+        {id: 2, number: 'ت/5/200', date: '2025-06-18', source: 'رئاسة ديوان الوقف الشيعي', subject: 'ضوابط جرد الأملاك الموقوفة', status: 'pending'}
+    ]);
+    let committeeData = getInitialData('committeeData', [
+        {id: 1, name: 'لجنة جرد الأملاك', members: [1, 2], tasks: 'جرد جميع أملاك الوقف في بغداد', achievements: 'تم إنجاز 50% من الجرد.'},
+        {id: 2, name: 'لجنة تطوير المناهج', members: [3], tasks: 'مراجعة وتطوير مناهج المدارس الدينية', achievements: 'قيد المراجعة الأولية.'}
+    ]);
+    let directorateData = getInitialData('directorateData', [
+        {id: 1, name: 'مديرية أوقاف بغداد', province: 'بغداد', assets: '15 مسجد, 5 مدارس', problems: 'تحتاج بعض المساجد للترميم.'}
+    ]);
+
+
+    // --- TEMPLATING ENGINE ---
+    const render = (templateId, data) => {
+        const templates = {
+            // Views
+            dashboardView: () => `
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+                    <div class="bg-white p-5 rounded-xl shadow text-center"><h3 class="text-gray-500 font-semibold">إجمالي المعاملات</h3><p id="total-mail-kpi" class="text-4xl font-bold text-sky-600 mt-2">0</p></div>
+                    <div class="bg-white p-5 rounded-xl shadow text-center"><h3 class="text-gray-500 font-semibold">إعمامات قيد المتابعة</h3><p id="pending-circulars-kpi" class="text-4xl font-bold text-amber-500 mt-2">0</p></div>
+                    <div class="bg-white p-5 rounded-xl shadow text-center"><h3 class="text-gray-500 font-semibold">بريد قيد الإجراء</h3><p id="progress-mail-kpi" class="text-4xl font-bold text-indigo-500 mt-2">0</p></div>
+                    <div class="bg-white p-5 rounded-xl shadow text-center"><h3 class="text-gray-500 font-semibold">معاملات منجزة</h3><p id="completed-mail-kpi" class="text-4xl font-bold text-green-500 mt-2">0</p></div>
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+                    <div class="bg-white p-6 rounded-xl shadow lg:col-span-3"><h3 class="font-bold text-lg mb-4">حجم البريد الشهري</h3><div class="chart-container" style="height: 250px;"><canvas id="mailVolumeChart"></canvas></div></div>
+                    <div class="bg-white p-6 rounded-xl shadow lg:col-span-2"><h3 class="font-bold text-lg mb-4">حالة البريد</h3><div class="chart-container" style="height: 250px;"><canvas id="mailStatusChart"></canvas></div></div>
+                </div>`,
+            mailView: (type) => `
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <div class="flex justify-between items-center mb-4 flex-wrap gap-4">
+                        <h2 class="text-xl font-bold text-slate-700">${type === 'incoming' ? 'سجل البريد الوارد' : 'سجل البريد الصادر'}</h2>
+                        <div class="flex items-center gap-2">
+                            <input type="text" id="mailSearch-${type}" placeholder="بحث بالرقم، الموضوع، الجهة..." class="border p-2 rounded-lg w-72">
+                            <button data-type="${type}" class="add-mail-btn bg-sky-600 text-white px-5 py-2 rounded-lg hover:bg-sky-700 font-bold">إضافة بريد</button>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto"><table class="w-full text-right"><thead class="border-b-2"><tr>
+                        <th class="p-3">رقم الكتاب</th><th class="p-3">التاريخ</th><th class="p-3">الجهة</th><th class="p-3">الموضوع</th><th class="p-3">الحالة</th><th class="p-3">إجراءات</th>
+
+رائد الطائي, [25/06/2025 03:18 ص]
+</tr></thead><tbody id="mailTableBody-${type}"></tbody></table></div>
+                </div>`,
+            archiveView: () => `
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <h2 class="text-xl font-bold text-slate-700 mb-4">الأرشيف الإلكتروني</h2>
+                     <div class="overflow-x-auto"><table class="w-full text-right"><thead class="border-b-2"><tr>
+                        <th class="p-3">رقم الكتاب</th><th class="p-3">تاريخ الأرشفة</th><th class="p-3">الموضوع</th><th class="p-3">النوع</th><th class="p-3">إجراءات</th>
+                    </tr></thead><tbody id="archiveTableBody"></tbody></table></div>
+                </div>`,
+            circularsView: () => `
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <div class="flex justify-between items-center mb-4"><h2 class="text-xl font-bold text-slate-700">سجل الإعمامات</h2>
+                        <div class="flex items-center gap-2">
+                             <input type="text" id="circularSearch" placeholder="بحث بالرقم، الموضوع، المصدر..." class="border p-2 rounded-lg w-72">
+                            <button id="add-circular-btn" class="bg-sky-600 text-white px-5 py-2 rounded-lg hover:bg-sky-700 font-bold">إضافة تعميم</button>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto"><table class="w-full text-right"><thead class="border-b-2"><tr>
+                        <th class="p-3">رقم التعميم</th><th class="p-3">تاريخه</th><th class="p-3">مصدره</th><th class="p-3">الموضوع</th><th class="p-3">الحالة</th><th class="p-3">إجراءات</th>
+                    </tr></thead><tbody id="circularsTableBody"></tbody></table></div>
+                </div>`,
+            hrView: () => `
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <div class="flex justify-between items-center mb-4"><h2 class="text-xl font-bold text-slate-700">قائمة الموظفين</h2><button id="add-employee-btn" class="bg-sky-600 text-white px-5 py-2 rounded-lg hover:bg-sky-700 font-bold">إضافة موظف</button></div>
+                    <div class="overflow-x-auto"><table class="w-full text-right"><thead class="border-b-2"><tr>
+                        <th class="p-3">الاسم</th><th class="p-3">المنصب</th><th class="p-3">القسم</th><th class="p-3">إجراءات</th>
+                    </tr></thead><tbody id="employeeTableBody"></table></div>
+                </div>`,
+            committeesView: () => `
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <div class="flex justify-between items-center mb-4"><h2 class="text-xl font-bold text-slate-700">إدارة اللجان</h2><button id="add-committee-btn" class="bg-sky-600 text-white px-5 py-2 rounded-lg hover:bg-sky-700 font-bold">تشكيل لجنة</button></div>
+                    <div class="overflow-x-auto"><table class="w-full text-right"><thead class="border-b-2"><tr>
+                        <th class="p-3">اسم اللجنة</th><th class="p-3">الأعضاء</th><th class="p-3">المهام</th><th class="p-3">الإنجاز</th><th class="p-3">إجراءات</th>
+                    </tr></thead><tbody id="committeesTableBody"></tbody></table></div>
+                </div>`,
+            directoratesView: () => `
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <div class="flex justify-between items-center mb-4"><h2 class="text-xl font-bold text-slate-700">لوحة تحكم المديريات</h2><button id="add-directorate-btn" class="bg-sky-600 text-white px-5 py-2 rounded-lg hover:bg-sky-700 font-bold">إضافة مديرية</button></div>
+                    <div id="directorates-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+                </div>`,
+            orgView: () => {
+                const buildNode = (dept) => {
+                    const subs = departmentData.filter(d => d.parentId === dept.id);
+                    const emps = employeeData.filter(e => e.departmentId === dept.id);
+                    return `
+                        <div class="flex flex-col items-center">
+
+رائد الطائي, [25/06/2025 03:18 ص]
+<details class="org-chart-node w-full" open>
+                                <summary>${dept.name}</summary>
+                                <div class="p-2 mt-2 bg-gray-50 text-sm font-normal text-right">
+                                    <h4 class="font-bold mb-1">الموظفون:</h4>
+                                    ${emps.length > 0 ? emps.map(e => `<p>${e.name} - ${e.title}</p>`).join('') : '<p class="text-gray-500">لا يوجد</p>'}
+                                </div>
+                            </details>
+                            ${subs.length > 0 ? `<div class="org-chart-connector h-4"></div><div class="flex gap-2 w-full">${subs.map(s => `<div class="w-full">${buildNode(s)}</div>`).join('')}</div>` : ''}
+                        </div>`;
+                };
+                const mainDepts = departmentData.filter(d => d.id >=3 && d.id <= 6);
+                return `
+                    <h2 class="text-2xl font-bold text-slate-700 mb-6 text-center">الهيكل التنظيمي لدائرة أوقاف المحافظات</h2>
+                    <div class="flex flex-col items-center space-y-8">
+                        <div class="w-full md:w-1/3">${buildNode(departmentData.find(d => d.id === 1))}</div>
+                        <div class="org-chart-connector h-4"></div>
+                        <div class="w-full md:w-1/2">${buildNode(departmentData.find(d => d.id === 2))}</div>
+                        <div class="org-chart-connector h-4"></div>
+                        <div class="w-full border-t-2 border-sky-200 my-4 pt-4">
+                            <p class="text-center font-bold mb-4 text-slate-600">الأقسام الإشرافية</p>
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">${mainDepts.map(buildNode).join('')}</div>
+                        </div>
+                    </div>`;
+            },
+            reportsView: () => `
+                <h2 class="text-2xl font-bold text-slate-700 mb-2">التقارير والتحليلات</h2><p class="text-gray-600 mb-6">نظرة شاملة على أداء وكفاءة نظام البريد.</p>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                    <div class="bg-white p-5 rounded-xl shadow text-center"><h3 class="text-gray-500 font-semibold">متوسط وقت الإنجاز</h3><p id="average-completion-time" class="text-4xl font-bold text-cyan-600 mt-2">3.2 <span class="text-xl">أيام</span></p></div>
+                    <div class="bg-white p-5 rounded-xl shadow"><h3 class="text-gray-500 font-semibold text-center">توزيع البريد حسب الأولوية</h3><div class="chart-container" style="height: 120px"><canvas id="priority-report-chart"></canvas></div></div>
+                    <div class="bg-white p-5 rounded-xl shadow"><h3 class="text-gray-500 font-semibold text-center">توزيع البريد حسب النوع</h3><div class="chart-container" style="height: 120px"><canvas id="type-report-chart"></canvas></div></div>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow"><h3 class="font-bold text-lg mb-4">تحليل أداء الأقسام (عدد المعاملات)</h3><div class="chart-container" style="height: 350px;"><canvas id="department-performance-chart"></canvas></div></div>`,
+            
+            // Modals
+            mailModal: () => `
+                <div class="modal-content">
+                <h2 id="mail-modal-title" class="text-2xl font-bold mb-6">إضافة بريد</h2>
+                <form id="mail-form"><input type="hidden" id="mail-id"><div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="md:col-span-2"><label for="mail-subject" class="block font-semibold mb-1">الموضوع</label><textarea id="mail-subject" rows="2" class="w-full border p-2 rounded-lg" required></textarea></div>
+                    <div><label for="mail-type" class="block font-semibold mb-1">نوع البريد</label><select id="mail-type" class="w-full border p-2 rounded-lg" required><option value="incoming">وارد</option><option value="outgoing">صادر</option></select></div>
+
+
+<div><label for="mail-number" class="block font-semibold mb-1">رقم الكتاب</label><input type="text" id="mail-number" class="w-full border p-2 rounded-lg" required></div>
+                    <div><label for="mail-date" class="block font-semibold mb-1">تاريخ الكتاب</label><input type="date" id="mail-date" class="w-full border p-2 rounded-lg" required></div>
+                    <div><label for="mail-entity" class="block font-semibold mb-1">الجهة</label><input type="text" id="mail-entity" class="w-full border p-2 rounded-lg" required></div>
+                    <div><label for="mail-department" class="block font-semibold mb-1">القسم المحال إليه</label><select id="mail-department" class="w-full border p-2 rounded-lg"></select></div>
+                    <div><label for="mail-action" class="block font-semibold mb-1">الإجراء المطلوب</label><input type="text" id="mail-action" placeholder="للعلم، للمتابعة..." class="w-full border p-2 rounded-lg"></div>
+                     <div><label for="mail-status-modal" class="block font-semibold mb-1">الحالة</label><select id="mail-status-modal" class="w-full border p-2 rounded-lg"><option value="new">جديد</option><option value="in-progress">قيد الإجراء</option><option value="completed">منجز</option></select></div>
+                    <div class="md:col-span-2"><label for="mail-notes" class="block font-semibold mb-1">ملاحظات</label><textarea id="mail-notes" rows="2" class="w-full border p-2 rounded-lg"></textarea></div>
+                </div><div class="flex justify-end gap-4 mt-8"><button type="button" class="modal-cancel-btn bg-gray-300 px-6 py-2 rounded-lg">إلغاء</button><button type="submit" class="bg-sky-600 text-white px-6 py-2 rounded-lg font-bold">حفظ</button></div></form></div>`,
+            mailHistoryModal: (mail) => {
+                if(!mail  !mail.history) return <div class="modal-content"><p>لا يوجد سجل لهذه المعاملة.</p></div>;
+                const historyHTML = mail.history.map(h => <div class="relative ps-8 my-2"><div class="absolute start-0 top-0 h-full w-0.5 bg-sky-200"></div><div class="absolute start-[-9px] top-1 w-5 h-5 bg-sky-500 rounded-full border-4 border-white"></div><p class="font-bold">${h.action}</p><p class="text-sm text-gray-500">${h.date}</p></div>).join('<div class="ps-8"><div class="h-4"></div></div>');
+                return <div class="modal-content"><h2 class="text-2xl font-bold mb-6">مسار المعاملة: ${mail.subject}</h2><div class="space-y-2">${historyHTML}</div><div class="text-left mt-6"><button class="modal-cancel-btn bg-gray-300 px-6 py-2 rounded-lg">إغلاق</button></div></div>
+            },
+            employeeModal: () => `
+                <div class="modal-content"><h2 id="employee-modal-title" class="text-2xl font-bold mb-6">إضافة موظف</h2><form id="employee-form"><input type="hidden" id="employee-id">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div><label for="employee-name" class="block font-semibold">الاسم</label><input type="text" id="employee-name" class="w-full border p-2 rounded-lg" required></div>
+                    <div><label for="employee-title" class="block font-semibold">المنصب</label><input type="text" id="employee-title" class="w-full border p-2 rounded-lg" required></div>
+                    <div class="md:col-span-2"><label for="employee-department-id" class="block font-semibold">القسم</label><select id="employee-department-id" class="w-full border p-2 rounded-lg" required></select></div>
+                    <div><label for="employee-phone" class="block font-semibold">الهاتف</label><input type="tel" id="employee-phone" class="w-full border p-2 rounded-lg"></div>
+                    <div><label for="employee-email" class="block font-semibold">البريد الإلكتروني</label><input type="email" id="employee-email" class="w-full border p-2 rounded-lg"></div>
+                    <div class="md:col-span-2"><label for="employee-education" class="block font-semibold">التحصيل العلمي</label><input type="text" id="employee-education" class="w-full border p-2 rounded-lg"></div>
+
+
+<div class="md:col-span-2"><label for="employee-docs" class="block font-semibold">المستمسكات (نص)</label><textarea id="employee-docs" rows="2" class="w-full border p-2 rounded-lg"></textarea></div>
+                </div>
+                <div class="flex justify-end gap-4 mt-8"><button type="button" class="modal-cancel-btn bg-gray-300 px-6 py-2 rounded-lg">إلغاء</button><button type="submit" class="bg-sky-600 text-white px-6 py-2 rounded-lg font-bold">حفظ</button></div></form></div>`,
+            circularModal: () => `
+                <div class="modal-content"><h2 id="circular-modal-title" class="text-2xl font-bold mb-6">إضافة تعميم</h2><form id="circular-form"><input type="hidden" id="circular-id"><div class="space-y-4">
+                    <div><label for="circular-subject" class="block font-semibold">الموضوع</label><input type="text" id="circular-subject" class="w-full border p-2 rounded-lg" required></div>
+                    <div><label for="circular-number" class="block font-semibold">رقم التعميم</label><input type="text" id="circular-number" class="w-full border p-2 rounded-lg" required></div>
+                    <div><label for="circular-date" class="block font-semibold">تاريخه</label><input type="date" id="circular-date" class="w-full border p-2 rounded-lg" required></div>
+                    <div><label for="circular-source" class="block font-semibold">مصدره</label><input type="text" id="circular-source" class="w-full border p-2 rounded-lg" required></div>
+                    <div><label for="circular-status" class="block font-semibold">الحالة</label><select id="circular-status" class="w-full border p-2 rounded-lg" required><option value="pending">قيد المتابعة</option><option value="completed">تم الإنجاز</option></select></div>
+                </div><div class="flex justify-end gap-4 mt-8"><button type="button" class="modal-cancel-btn bg-gray-300 px-6 py-2 rounded-lg">إلغاء</button><button type="submit" class="bg-sky-600 text-white px-6 py-2 rounded-lg font-bold">حفظ</button></div></form></div>`,
+            committeeModal: () => `
+                <div class="modal-content"><h2 id="committee-modal-title" class="text-2xl font-bold mb-6">تشكيل لجنة</h2><form id="committee-form"><input type="hidden" id="committee-id"><div class="space-y-4">
+                    <div><label for="committee-name" class="block font-semibold">اسم اللجنة</label><input type="text" id="committee-name" class="w-full border p-2 rounded-lg" required></div>
+                    <div><label class="block font-semibold">الأعضاء</label><div id="committee-members-checkboxes" class="p-2 border rounded-lg max-h-32 overflow-y-auto grid grid-cols-2 gap-2"></div></div>
+                    <div><label for="committee-tasks" class="block font-semibold">المهام</label><textarea id="committee-tasks" rows="3" class="w-full border p-2 rounded-lg" required></textarea></div>
+                    <div><label for="committee-achievements" class="block font-semibold">الإنجاز</label><textarea id="committee-achievements" rows="2" class="w-full border p-2 rounded-lg"></textarea></div>
+                </div><div class="flex justify-end gap-4 mt-8"><button type="button" class="modal-cancel-btn bg-gray-300 px-6 py-2 rounded-lg">إلغاء</button><button type="submit" class="bg-sky-600 text-white px-6 py-2 rounded-lg font-bold">حفظ</button></div></form></div>`,
+            directorateModal: () => `
+                <div class="modal-content"><h2 id="directorate-modal-title" class="text-2xl font-bold mb-6">إضافة مديرية</h2><form id="directorate-form"><input type="hidden" id="directorate-id"><div class="space-y-4">
+                    <div><label for="directorate-name" class="block font-semibold">اسم المديرية</label><input type="text" id="directorate-name" class="w-full border p-2 rounded-lg" required></div>
+                    <div><label for="directorate-province" class="block font-semibold">المحافظة</label><input type="text" id="directorate-province" class="w-full border p-2 rounded-lg" required></div>
+
+
+<div><label for="directorate-assets" class="block font-semibold">الأملاك (مساجد، مدارس...)</label><textarea id="directorate-assets" rows="2" class="w-full border p-2 rounded-lg"></textarea></div>
+                    <div><label for="directorate-problems" class="block font-semibold">المشاكل والاحتياجات</label><textarea id="directorate-problems" rows="3" class="w-full border p-2 rounded-lg"></textarea></div>
+                </div><div class="flex justify-end gap-4 mt-8"><button type="button" class="modal-cancel-btn bg-gray-300 px-6 py-2 rounded-lg">إلغاء</button><button type="submit" class="bg-sky-600 text-white px-6 py-2 rounded-lg font-bold">حفظ</button></div></form></div>`,
+            confirmModal: () => <div class="modal-content text-center max-w-sm"><h2 class="text-xl font-bold mb-4">تأكيد الحذف</h2><p class="mb-6">هل أنت متأكد؟ لا يمكن التراجع عن هذا الإجراء.</p><div class="flex justify-center gap-4"><button id="confirm-cancel-btn" class="bg-gray-300 px-6 py-2 rounded-lg">إلغاء</button><button id="confirm-delete-btn" class="bg-red-600 text-white px-6 py-2 rounded-lg font-bold">حذف</button></div></div>,
+        };
+        const targetElement = document.getElementById(templateId);
+        if (targetElement) {
+            targetElement.innerHTML = templates[templateId.replace(/-(\w)/g, (m, g) => g.toUpperCase())](data);
+        }
+    };
+
+    // --- GLOBAL APP STATE & RENDER ---
+    const app = {
+        // Data
+        departments: departmentData,
+        employees: employeeData,
+        mails: mailData,
+        archivedMails: archivedMailData,
+        circulars: circularData,
+        committees: committeeData,
+        directorates: directorateData,
+
+        // UI State
+        activeView: 'dashboard',
+        charts: {},
+        confirmCallback: null,
+
+        // --- INITIALIZATION ---
+        init() {
+            this.setupEventListeners();
+            const initialHash = window.location.hash  '#dashboard';
+            this.navigateTo(initialHash);
+            
+            window.addEventListener('hashchange', () => this.navigateTo(window.location.hash));
+        },
+
+        // --- NAVIGATION ---
+        navigateTo(hash) {
+            this.activeView = hash.substring(1)  'dashboard';
+            document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
+            const currentView = document.getElementById(${this.activeView}-view);
+            if (currentView) {
+                currentView.classList.remove('hidden');
+            }
+
+            document.querySelectorAll('.nav-link').forEach(l => {
+                l.classList.remove('bg-sky-100', 'text-sky-700', 'font-bold');
+                l.classList.add('hover:bg-sky-100', 'hover:text-sky-700', 'font-semibold');
+                if(l.getAttribute('href') === hash) {
+                    l.classList.add('bg-sky-100', 'text-sky-700', 'font-bold');
+                    l.classList.remove('hover:bg-sky-100', 'hover:text-sky-700', 'font-semibold');
+                    document.getElementById('header-title').textContent = l.textContent.trim();
+                }
+            });
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>نظام المتابعة المتكامل - دائرة أوقاف المحافظات</title>
+
+    <script src="https://cdn.tailwindcss.com" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet" />
+    <style>
+        body {
+            font-family: 'Cairo', sans-serif;
+            background-color: #f0f4f8;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            height: 300px;
+        }
+        .sidebar-icon {
+            font-size: 1.5rem;
+            line-height: 1;
+        }
+        .status-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(0, 0, 0, 0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+            transition: opacity
